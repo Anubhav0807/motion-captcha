@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Depends
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
@@ -9,6 +10,7 @@ from database import engine, Base, get_db
 from models import *
 from schemas import MetricsRequest
 
+from generate import generate_captcha
 
 # Load trained ML model
 risk_model = joblib.load("risk_model.joblib")
@@ -42,6 +44,21 @@ def health():
         "service": "Motion Captcha API",
         "api_base_url": "/api"
     }
+
+
+# -------------------------
+# GET captcha
+# -------------------------
+
+@app.get("/api/captcha")
+def get_captcha():
+    image_path = generate_captcha()
+
+    return FileResponse(
+        path=image_path,
+        media_type="image/gif",
+        filename="capthca.gif"
+    )
 
 
 # -------------------------
