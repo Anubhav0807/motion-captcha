@@ -57,7 +57,9 @@ def get_captcha():
     return FileResponse(
         path=image_path,
         media_type="image/gif",
-        filename="capthca.gif"
+        filename="capthca.gif",
+        content_disposition_type="inline",
+        headers={"Cache-Control": "no-store"}
     )
 
 
