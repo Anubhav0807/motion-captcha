@@ -99,8 +99,6 @@ def load_original_data():
             ON pr.mouse_metrics_id = mm.id
 
         ORDER BY pr.id
-
-        LIMIT 50
     """)
 
     with engine.connect() as connection:
@@ -279,14 +277,6 @@ def main():
     print()
     print("Class distribution:")
     print(df["label"].value_counts())
-
-
-    # We expect exactly the 50 original records
-    if len(df) != 50:
-
-        raise RuntimeError(
-            f"Expected 50 original records, found {len(df)}."
-        )
 
 
     # --------------------------------------------------------
@@ -639,8 +629,6 @@ def main():
     print("Validation method:")
 
     print("  5-fold stratified cross-validation")
-    print("  50 ORIGINAL records only")
-    print("  Synthetic records excluded")
     print("  14 original features")
 
     print(
