@@ -27,20 +27,35 @@ GRAYS = [
     (255, 255, 255),
 ]
 
-CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+UPPERCASE = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+LOWERCASE = "abcdefghijklmnopqrstuvwxyz"
+NUMBERS = "0123456789"
+
+DEFAULT_CONFIG = {
+    "uppercase": True,
+    "lowercase": True,
+    "numbers": True
+}
 
 
-def generate_capthca_text(length=6):
+def generate_capthca_text(config, length=6):
+    characters = ""
+    if config["uppercase"]: characters += UPPERCASE
+    if config["lowercase"]: characters += LOWERCASE
+    if config["numbers"]: characters += NUMBERS
+
     text = ""
-    for i in range(length):
-        text += random.choice(CHARACTERS)
+    for _ in range(length):
+        text += random.choice(characters)
+
+    print("Generated Captcha:", text)
     return text
 
-def create_cutout_mask(font):
+def create_cutout_mask(font, config):
     temp = pygame.Surface((WIDTH, HEIGHT))
     temp.fill(BLACK)
 
-    text = font.render(generate_capthca_text(), True, WHITE)
+    text = font.render(generate_capthca_text(config), True, WHITE)
     rect = text.get_rect(center=(WIDTH // 2, HEIGHT // 2))
     temp.blit(text, rect)
 
@@ -77,10 +92,7 @@ def generate_noise():
     return surf
 
 
-def generate_captcha(
-    output_gif="captcha.gif",
-    frames_dir="frames",
-):
+def generate_captcha(output_gif="captcha.gif", frames_dir="frames", config=DEFAULT_CONFIG):
     """Generate a headless capthca GIF and PNG frames."""
 
     pygame.init()
@@ -106,7 +118,7 @@ def generate_captcha(
                 )
 
         text_noise = generate_noise()
-        cutout = create_cutout_mask(font)
+        cutout = create_cutout_mask(font, config)
 
         text_layer = text_noise.copy()
         text_layer.blit(cutout, (0, 0))

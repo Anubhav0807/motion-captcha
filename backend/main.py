@@ -50,9 +50,19 @@ def health():
 # GET captcha
 # -------------------------
 
+# Type hint is very important, otherwise variables are treated as strings   
 @app.get("/api/captcha")
-def get_captcha():
-    image_path = generate_captcha()
+def get_captcha(
+    uppercase: bool = True,
+    lowercase: bool = True,
+    numbers: bool = True
+):
+
+    image_path = generate_captcha(config={
+        "uppercase": uppercase,
+        "lowercase": lowercase,
+        "numbers": numbers
+    })
 
     return FileResponse(
         path=image_path,
