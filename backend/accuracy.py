@@ -4,6 +4,9 @@ import numpy as np
 from sqlalchemy import create_engine, text
 
 from sklearn.model_selection import StratifiedKFold
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
     accuracy_score,
     precision_score,
@@ -144,6 +147,20 @@ def prepare_data(df):
         )
 
     return X, y.astype(int)
+
+
+# ============================================================
+# CREATE LOGISTIC REGRESSION BASELINE
+# ============================================================
+
+def create_logistic_regression():
+    return Pipeline([
+        ("scaler", StandardScaler()),
+        ("model", LogisticRegression(
+            max_iter=2000,
+            random_state=RANDOM_STATE,
+        )),
+    ])
 
 
 # ============================================================
@@ -332,6 +349,7 @@ def main():
 
     # Store metrics from every fold
     all_metrics = {
+        "Logistic Regression": [],
         "CatBoost": [],
         "TabPFN": [],
         "Ensemble": [],
@@ -340,6 +358,7 @@ def main():
 
     # Store predictions for aggregated confusion matrices
     all_predictions = {
+        "Logistic Regression": [],
         "CatBoost": [],
         "TabPFN": [],
         "Ensemble": [],
@@ -382,6 +401,31 @@ def main():
 
         print(
             f"Testing samples : {len(X_test)}"
+        )
+
+
+        # ====================================================
+        # LOGISTIC REGRESSION BASELINE
+        # ====================================================
+
+        print()
+        print("Training Logistic Regression baseline...")
+
+        logistic_regression = create_logistic_regression()
+        logistic_regression.fit(X_train, y_train)
+
+        logistic_probability = (
+            logistic_regression.predict_proba(X_test)[:, 1]
+        )
+
+        logistic_metrics = calculate_metrics(
+            y_test,
+            logistic_probability
+        )
+
+        print_metrics(
+            "Logistic Regression (Baseline)",
+            logistic_metrics
         )
 
 
@@ -483,6 +527,10 @@ def main():
         # Store metrics
         # ----------------------------------------------------
 
+        all_metrics["Logistic Regression"].append(
+            logistic_metrics
+        )
+
         all_metrics["CatBoost"].append(
             catboost_metrics
         )
@@ -499,6 +547,12 @@ def main():
         # ----------------------------------------------------
         # Store predictions
         # ----------------------------------------------------
+
+        all_predictions["Logistic Regression"].extend(
+            (
+                logistic_probability >= 0.5
+            ).astype(int)
+        )
 
         all_predictions["CatBoost"].extend(
             (
