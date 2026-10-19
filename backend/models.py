@@ -1,6 +1,7 @@
+import uuid
 from enum import Enum
 
-from sqlalchemy import Float, Integer, Enum as SQLEnum, ForeignKey
+from sqlalchemy import Float, Integer, String, Enum as SQLEnum, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column
 
 from database import Base
@@ -69,4 +70,19 @@ class PredictionResults(Base):
     label: Mapped[PredictionLabel] = mapped_column(
         SQLEnum(PredictionLabel),
         nullable=False
+    )
+
+
+class RiskScoreRecord(Base):
+    __tablename__ = "risk_scores"
+
+    token: Mapped[str] = mapped_column(
+        String(36),
+        primary_key=True,
+        default=lambda: str(uuid.uuid4()),
+    )
+
+    risk_score: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
     )

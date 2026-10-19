@@ -28,3 +28,7 @@ class MetricsRequest(BaseModel):
     clicks: ClicksData
     keyboard: KeyboardData
     mouse: MouseData
+
+class RiskScoreData(BaseModel):
+    token: str
+    risk_score: int

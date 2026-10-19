@@ -2,10 +2,9 @@ import os
 import random
 
 os.environ["SDL_VIDEODRIVER"] = "dummy"
-os.makedirs("output", exist_ok=True)
 
 import pygame
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
 
 WIDTH, HEIGHT = 250, 100
@@ -48,14 +47,13 @@ def generate_capthca_text(config, length=6):
     for _ in range(length):
         text += random.choice(characters)
 
-    print("Generated Captcha:", text)
     return text
 
-def create_cutout_mask(font, config):
+def create_cutout_mask(font, config, length):
     temp = pygame.Surface((WIDTH, HEIGHT))
     temp.fill(BLACK)
 
-    text = font.render(generate_capthca_text(config), True, WHITE)
+    text = font.render(generate_capthca_text(config, length), True, WHITE)
     rect = text.get_rect(center=(WIDTH // 2, HEIGHT // 2))
     temp.blit(text, rect)
 
@@ -92,11 +90,57 @@ def generate_noise():
     return surf
 
 
-def generate_captcha(output_gif="captcha.gif", frames_dir="frames", config=DEFAULT_CONFIG):
-    """Generate a headless capthca GIF and PNG frames."""
+def generate_static_captcha(image_path, config, length):
+    """Generate a static capthca PNG."""
+
+    # Generate CAPTCHA text
+    captcha_text = generate_capthca_text(config, length)
+
+    # Create image and drawing context
+    image = Image.new("RGB", (WIDTH, HEIGHT), WHITE)
+    draw = ImageDraw.Draw(image)
+
+    # Load font
+    font = ImageFont.truetype("anniesgrids.ttf", FONT_SIZE)
+
+    # Center the CAPTCHA text
+    bbox = draw.textbbox((0, 0), captcha_text, font=font)
+    text_width = bbox[2] - bbox[0]
+    text_height = bbox[3] - bbox[1]
+
+    x = (WIDTH - text_width) // 2
+    y = (HEIGHT - text_height) // 2 - bbox[1]
+
+    # Draw CAPTCHA text
+    draw.text((x, y), captcha_text, font=font, fill=GRAYS[1])
+
+    # Add random noise dots
+    for _ in range(150):
+        px = random.randint(0, WIDTH - 1)
+        py = random.randint(0, HEIGHT - 1)
+        color = tuple(random.randint(80, 200) for _ in range(3))
+        draw.point((px, py), fill=color)
+
+    # Add random interference lines
+    for _ in range(5):
+        start = (random.randint(0, WIDTH), random.randint(0, HEIGHT))
+        end = (random.randint(0, WIDTH), random.randint(0, HEIGHT))
+        line_color = tuple(random.randint(100, 200) for _ in range(3))
+        draw.line((start, end), fill=line_color, width=1)
+
+    # Apply a subtle blur
+    image = image.filter(ImageFilter.GaussianBlur(radius=0.3))
+
+    # Save the image
+    image.save(image_path)
+
+    return image_path
+
+
+def generate_dynamic_captcha(image_path, config, length, frames_dir="frames"):
+    """Generate a dynamic capthca GIF and PNG frames."""
 
     pygame.init()
-    output_gif = "output/" + output_gif
 
     try:
         screen = pygame.Surface((WIDTH, HEIGHT))
@@ -118,7 +162,7 @@ def generate_captcha(output_gif="captcha.gif", frames_dir="frames", config=DEFAU
                 )
 
         text_noise = generate_noise()
-        cutout = create_cutout_mask(font, config)
+        cutout = create_cutout_mask(font, config, length)
 
         text_layer = text_noise.copy()
         text_layer.blit(cutout, (0, 0))
@@ -163,22 +207,31 @@ def generate_captcha(output_gif="captcha.gif", frames_dir="frames", config=DEFAU
         gif_frames = []
 
         for frame in frames:
-            data = pygame.image.tostring(frame, "RGB")
+            data = pygame.image.tobytes(frame, "RGB")
             image = Image.frombytes("RGB", (WIDTH, HEIGHT), data)
             gif_frames.append(image)
 
         gif_frames[0].save(
-            output_gif,
+            image_path,
             save_all=True,
             append_images=gif_frames[1:],
             duration=round(1000 / GIF_FPS),
             loop=0,
         )
 
-        return output_gif
+        return image_path
 
     finally:
         pygame.quit()
 
+
+def generate_captcha(image_path, captcha_type, config=DEFAULT_CONFIG, length=6):
+    if captcha_type == "static":
+        return generate_static_captcha(image_path, config, length)
+    elif captcha_type == "dynamic":
+        return generate_dynamic_captcha(image_path, config, length)
+
+
 if __name__ == "__main__":
-    generate_captcha()
+    generate_captcha("captcha.png", "static")
+    generate_captcha("captcha.git", "dynamic")
