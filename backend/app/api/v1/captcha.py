@@ -123,8 +123,8 @@ def assess(
     # customer's server learns it, via /v1/verify.
     return AssessResponse(
         token=assessment.token,
-        challenge_url=f"{config.PUBLIC_API_URL}/v1/challenge/{assessment.token}",
         expires_in=key.challenge_ttl,
+        risk_score=risk_score
     )
 
 

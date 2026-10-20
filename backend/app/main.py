@@ -62,8 +62,8 @@ def create_app() -> FastAPI:
         CORSMiddleware,
         allow_origins=["*"],
         allow_credentials=False,
-        allow_methods=["GET", "POST", "OPTIONS"],
-        allow_headers=["Content-Type", "Authorization", "X-Site-Key"],
+        allow_methods=["*"],
+        allow_headers=["*"],
         max_age=86400,
     )
     register_exception_handlers(application)

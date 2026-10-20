@@ -23,7 +23,7 @@ from PIL import Image, ImageDraw, ImageFont, ImageFilter
 from app.core import config
 
 
-WIDTH, HEIGHT = 250, 100
+WIDTH, HEIGHT = 270, 100
 # GIF frame delays are stored in 1/100 s, and browsers slow any delay below
 # 20 ms down to 100 ms, so 50 fps (20 ms) is the fastest rate that plays as intended.
 GIF_FPS = 50

@@ -43,8 +43,8 @@ class LabeledMetricsRequest(MetricsRequest):
 
 class AssessResponse(BaseModel):
     token: str
-    challenge_url: str
     expires_in: int
+    risk_score: int
 
 
 class VerifyRequest(BaseModel):

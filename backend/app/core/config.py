@@ -35,7 +35,7 @@ DATABASE_URL = _database_url()
 SECRET_KEY = os.getenv("SECRET_KEY", "")
 
 # Public URL of the dashboard (used in emails, Stripe redirects).
-APP_URL = os.getenv("APP_URL", "http://localhost:5173").rstrip("/")
+APP_URL = os.getenv("APP_URL", "http://localhost:5174").rstrip("/")
 
 # Public URL of this API as seen by your customers' browsers (used in challenge URLs).
 PUBLIC_API_URL = os.getenv("PUBLIC_API_URL", "http://localhost:8000").rstrip("/")

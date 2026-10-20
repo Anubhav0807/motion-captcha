@@ -52,10 +52,10 @@ uvicorn app.main:app --reload --port 8000
 cd frontend
 npm install
 cp .env.example .env
-npm run dev                   # http://localhost:5173 (proxies /api and /v1 to :8000)
+npm run dev                   # http://localhost:5174 (proxies /api and /v1 to :8000)
 ```
 
-Open http://localhost:5173, create an account, create a key with
+Open http://localhost:5174, create an account, create a key with
 `localhost` as an allowed domain, and follow the **Integration** page.
 
 Tables are created automatically on startup. Your existing training
