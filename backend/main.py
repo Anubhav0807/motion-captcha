@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, BackgroundTasks, HTTPException
+from fastapi import FastAPI, Depends, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
@@ -6,10 +6,10 @@ from sqlalchemy.orm import Session
 import logging
 
 from database import engine, Base, get_db
-from schemas import MetricsRequest, RiskScoreData
-from models import RiskScoreRecord
+from schemas import MetricsRequest, RiskScoreData, CaptchaData
+from models import RiskScoreRecord, CaptchaChallenge
 
-from captcha_service import prepare_captcha
+from captcha_service import generate_captcha
 from metrics_service import calculate_risk_score, save_metrics_to_db
 
 
@@ -30,10 +30,7 @@ app.add_middleware(
 )
 
 
-# -------------------------
-# Health route
-# -------------------------
-
+# Health routes
 @app.get("/")
 @app.get("/api")
 def health():
@@ -44,13 +41,8 @@ def health():
     }
 
 
-# -------------------------
-# GET captcha
-# -------------------------
-
 @app.get("/api/captcha")
 def get_captcha(
-    background_tasks: BackgroundTasks,
     token: str,
     uppercase: bool = True,
     lowercase: bool = True,
@@ -73,7 +65,7 @@ def get_captcha(
     risk_score = record.risk_score
 
     # Select CAPTCHA type based on bot risk
-    captcha_type = "dynamic" if risk_score >= 70 else "static"
+    captcha_type = "dynamic" if risk_score >= 50 else "static"
 
     config = {
         "uppercase": uppercase,
@@ -82,8 +74,18 @@ def get_captcha(
     }
 
     try:
-        image_path, file_type = prepare_captcha(background_tasks, config, captcha_type)
+        captcha_text, image_path, file_type = generate_captcha(captcha_type, config)
+
+        challenge = CaptchaChallenge(
+            token=token,
+            captcha_text=captcha_text
+        )
+
+        db.merge(challenge)
+        db.commit()
+
     except Exception as exc:
+        db.rollback()
         logger.exception("Failed to prepare CAPTCHA")
         raise HTTPException(
             status_code=500,
@@ -102,9 +104,34 @@ def get_captcha(
     )
 
 
-# -------------------------
-# POST metrics: risk analysis
-# -------------------------
+@app.post("/api/captcha")
+def verify_captcha(
+    payload: CaptchaData,
+    db: Session = Depends(get_db)
+):
+    captcha = (
+        db.query(CaptchaChallenge)
+        .filter(CaptchaChallenge.token == payload.token)
+        .first()
+    )
+
+    if captcha is None:
+        raise HTTPException(
+            status_code=404,
+            detail="CAPTCHA token not found or expired."
+        )
+
+    if captcha.captcha_text != payload.captcha_text:
+        raise HTTPException(
+            status_code=400,
+            detail="Incorrect CAPTCHA."
+        )
+
+    return {
+        "success": True,
+        "message": "CAPTCHA verified successfully."
+    }
+
 
 @app.post("/api/metrics", response_model=RiskScoreData)
 def analyze_risk(
@@ -113,10 +140,6 @@ def analyze_risk(
 ):
     return calculate_risk_score(data, db)
 
-
-# -------------------------
-# POST metrics: database persistence
-# -------------------------
 
 @app.post("/api/save-metrics")
 def save_metrics(

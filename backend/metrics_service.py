@@ -69,22 +69,17 @@ def calculate_risk_score(data, db: Session) -> RiskScoreData:
 
     try:
         db.add(record)
-        db.flush()
-
-        result = RiskScoreRecord(
-            token=record.token,
-            risk_score=record.risk_score,
-        )
-
         db.commit()
-        return result
+        db.refresh(record)
+
+        return record
 
     except Exception:
         db.rollback()
         raise
 
 
-def save_metrics_to_db(data, db: Session):
+def save_metrics_to_db(data, db: Session, label=PredictionLabel.HUMAN):
     """Persist behavioral metrics and the associated prediction."""
 
     try:
@@ -124,7 +119,7 @@ def save_metrics_to_db(data, db: Session):
             click_metrics_id=click_metrics.id,
             keyboard_metrics_id=keyboard_metrics.id,
             mouse_metrics_id=mouse_metrics.id,
-            label=PredictionLabel.HUMAN,
+            label=label,
         )
 
         db.add(prediction_result)
@@ -132,7 +127,7 @@ def save_metrics_to_db(data, db: Session):
 
         return {
             "message": "Metrics saved successfully",
-            "prediction": PredictionLabel.HUMAN,
+            "prediction": label,
         }
 
     except Exception:

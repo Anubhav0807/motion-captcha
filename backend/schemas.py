@@ -32,3 +32,8 @@ class MetricsRequest(BaseModel):
 class RiskScoreData(BaseModel):
     token: str
     risk_score: int
+    
+
+class CaptchaData(BaseModel):
+    token: str
+    captcha_text: str

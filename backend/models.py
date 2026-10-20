@@ -86,3 +86,18 @@ class RiskScoreRecord(Base):
         Integer,
         nullable=False,
     )
+
+
+class CaptchaChallenge(Base):
+    __tablename__ = "captcha_challenges"
+
+    token: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("risk_scores.token"),
+        primary_key=True,
+    )
+
+    captcha_text: Mapped[str] = mapped_column(
+        String(36),
+        nullable=False,
+    )
