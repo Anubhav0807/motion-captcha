@@ -1,45 +1,40 @@
-import { useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  KeyRound, Search, BarChart3, Pencil, RefreshCw, Ban, Trash2, ShieldCheck, Globe, Cpu, FolderKanban, List, Copy, Wallet,
+  KeyRound, Search, BarChart3, Pencil, RefreshCw, Ban, Trash2, Globe, ScrollText, Copy, Shuffle, Image as ImageIcon,
 } from 'lucide-react';
 import { api } from '../api';
-import { TIERS, modelLabel } from '../config';
-import { useAsync } from '../hooks/useAsync';
-import { useProjects } from '../context/ProjectsContext';
+import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { fmtDate, fmtRelative, maskKey, copyText } from '../lib/format';
+import { useAsync } from '../hooks/useAsync';
+import { copyText, fmtDate, fmtRelative, maskSecret } from '../lib/format';
 import {
-  Badge, Card, ConfirmDialog, EmptyState, ErrorState, Input, LoadingBlock, Menu, PageHeader, Segmented, Select, IconButton,
+  Badge, Card, ConfirmDialog, CopyButton, EmptyState, ErrorState, IconButton, Input, LoadingBlock, Menu, PageHeader, Select,
 } from '../components/ui';
 import { KeyFormModal, NewKeyButton, SecretModal } from '../components/KeyModals';
 
-function RestrictionChips({ r }) {
-  const chips = [];
-  if (r?.models?.length) chips.push({ icon: Cpu, text: r.models.map(modelLabel).join(', ') });
-  if (r?.ips?.length) chips.push({ icon: ShieldCheck, text: `${r.ips.length} IP rule${r.ips.length > 1 ? 's' : ''}` });
-  if (r?.referrers?.length) chips.push({ icon: Globe, text: `${r.referrers.length} referrer${r.referrers.length > 1 ? 's' : ''}` });
-  if (!chips.length) return <span className="faint xsmall">Unrestricted</span>;
-  return (
-    <div className="row gap-4 wrap">
-      {chips.map((c) => <span key={c.text} className="chip"><c.icon size={12} />{c.text}</span>)}
-    </div>
-  );
+function modeLabel(t) {
+  if (t >= 101) return { text: 'Always static', icon: ImageIcon };
+  if (t <= 0) return { text: 'Always motion', icon: Shuffle };
+  return { text: `Adaptive · risk ≥ ${t}`, icon: Shuffle };
 }
 
-function statusOf(k) {
-  if (k.status === 'revoked') return { tone: 'neutral', label: 'Revoked' };
-  if (k.expiresAt && new Date(k.expiresAt) < new Date()) return { tone: 'danger', label: 'Expired' };
-  if (k.expiresAt && new Date(k.expiresAt) - Date.now() < 14 * 86400000) return { tone: 'warn', label: 'Expiring' };
-  return { tone: 'ok', label: 'Active' };
+function Domains({ list }) {
+  if (!list?.length) return <Badge tone="warn" dot>Any domain</Badge>;
+  return (
+    <div className="row gap-4 wrap">
+      {list.slice(0, 2).map((d) => <span key={d} className="chip mono"><Globe size={11} />{d}</span>)}
+      {list.length > 2 && <span className="chip">+{list.length - 2}</span>}
+    </div>
+  );
 }
 
 export default function ApiKeys() {
   const navigate = useNavigate();
   const toast = useToast();
-  const { projects, byId, reload: reloadProjects } = useProjects();
-  const [group, setGroup] = useState('key');
-  const [projectFilter, setProjectFilter] = useState('');
+  const { can } = useAuth();
+  const canWrite = can('keys:write');
+  const [params, setParams] = useSearchParams();
   const [statusFilter, setStatusFilter] = useState('active');
   const [q, setQ] = useState('');
   const [formOpen, setFormOpen] = useState(false);
@@ -48,143 +43,77 @@ export default function ApiKeys() {
   const [confirm, setConfirm] = useState(null);
 
   const { data, loading, error, reload, setData } = useAsync(
-    () => api.keys.list({ projectId: projectFilter || undefined, status: statusFilter || undefined }),
-    [projectFilter, statusFilter],
+    () => api.keys.list({ status: statusFilter || undefined }), [statusFilter],
   );
+
+  // Brand-new accounts land here with ?new=1 → open the create dialog once.
+  useEffect(() => {
+    if (params.get('new') && canWrite) {
+      setFormOpen(true);
+      setParams({}, { replace: true });
+    }
+  }, [params, setParams, canWrite]);
 
   const keys = useMemo(() => {
     const s = q.trim().toLowerCase();
-    return (data || []).filter((k) => !s || k.name.toLowerCase().includes(s) || k.last4.toLowerCase().includes(s) || k.id.includes(s));
+    return (data || []).filter((k) => !s || k.name.toLowerCase().includes(s) || k.siteKey.toLowerCase().includes(s)
+      || k.allowedDomains.some((d) => d.includes(s)));
   }, [data, q]);
 
-  const grouped = useMemo(() => {
-    const m = new Map();
-    keys.forEach((k) => { if (!m.has(k.projectId)) m.set(k.projectId, []); m.get(k.projectId).push(k); });
-    return [...m.entries()];
-  }, [keys]);
-
   const replaceKey = (k) => setData((list) => (list || []).map((x) => (x.id === k.id ? k : x)));
-
-  const guarded = (fn) => async () => {
-    try { await fn(); } catch (e) { toast.error(e); throw e; }
-  };
+  const guarded = (fn) => async () => { try { await fn(); } catch (e) { toast.error(e); throw e; } };
 
   const actions = (k) => [
-    { label: 'View usage', icon: BarChart3, onClick: () => navigate(`/usage?keyId=${k.id}`) },
-    { label: 'Copy key ID', icon: Copy, onClick: async () => { await copyText(k.id); toast.success('Key ID copied'); } },
-    k.status === 'active' && { label: 'Edit name & restrictions', icon: Pencil, onClick: () => { setEditing(k); setFormOpen(true); } },
-    k.status === 'active' && { label: 'Regenerate secret', icon: RefreshCw, onClick: () => setConfirm({
-      title: 'Regenerate this key?', confirmLabel: 'Regenerate', tone: 'primary',
-      body: <>The current secret for <strong>{k.name}</strong> stops working immediately. Anything using it will start getting 401 errors until you deploy the new secret.</>,
+    { label: 'View analytics', icon: BarChart3, onClick: () => navigate(`/analytics?keyId=${k.id}`) },
+    { label: 'View request logs', icon: ScrollText, onClick: () => navigate(`/logs?keyId=${k.id}`) },
+    { label: 'Copy site key', icon: Copy, onClick: async () => { await copyText(k.siteKey); toast.success('Site key copied'); } },
+    canWrite && k.status === 'active' && { label: 'Edit settings', icon: Pencil, onClick: () => { setEditing(k); setFormOpen(true); } },
+    canWrite && k.status === 'active' && { label: 'Roll secret key', icon: RefreshCw, onClick: () => setConfirm({
+      title: 'Roll the secret key?', confirmLabel: 'Roll secret', tone: 'primary',
+      body: <>The current secret for <strong>{k.name}</strong> stops working immediately, so your server’s calls to <code>/v1/verify</code> will fail until you deploy the new one. The site key doesn’t change.</>,
       run: guarded(async () => {
-        const res = await api.keys.regenerate(k.id);
+        const res = await api.keys.rollSecret(k.id);
         replaceKey(res.key);
-        setSecret({ value: res.secret, name: res.key.name });
+        setSecret({ ...res, rolled: true });
       }),
     }) },
-    'divider',
-    k.status === 'active' && { label: 'Revoke', icon: Ban, danger: true, onClick: () => setConfirm({
-      title: 'Revoke API key?', confirmLabel: 'Revoke key',
-      body: <>Requests using <strong>{k.name}</strong> ({maskKey(k)}) will be rejected right away. Usage history is kept. This can’t be undone.</>,
+    canWrite && 'divider',
+    canWrite && k.status === 'active' && { label: 'Revoke', icon: Ban, danger: true, onClick: () => setConfirm({
+      title: 'Revoke this key?', confirmLabel: 'Revoke key',
+      body: <>The widget and verification for <strong>{k.name}</strong> stop working right away. Analytics history is kept. This can’t be undone.</>,
       run: guarded(async () => {
         const updated = await api.keys.revoke(k.id);
-        if (statusFilter === 'active') setData((l) => l.filter((x) => x.id !== k.id));
-        else replaceKey(updated);
-        reloadProjects();
+        if (statusFilter === 'active') setData((l) => l.filter((x) => x.id !== k.id)); else replaceKey(updated);
         toast.success('Key revoked');
       }),
     }) },
-    { label: 'Delete', icon: Trash2, danger: true, onClick: () => setConfirm({
-      title: 'Delete API key?', confirmLabel: 'Delete permanently', requireText: k.name,
-      body: <>This revokes the key and removes it from this list. Historical usage will show as “deleted key”.</>,
+    canWrite && k.status === 'revoked' && { label: 'Delete', icon: Trash2, danger: true, onClick: () => setConfirm({
+      title: 'Delete this key?', confirmLabel: 'Delete permanently', requireText: k.name,
+      body: <>Removes the key from this list. Its usage stays in analytics as “Deleted key”.</>,
       run: guarded(async () => {
         await api.keys.remove(k.id);
         setData((l) => l.filter((x) => x.id !== k.id));
-        reloadProjects();
         toast.success('Key deleted');
       }),
     }) },
   ];
 
-  const row = (k, showProject = true) => {
-    const st = statusOf(k);
-    const p = byId[k.projectId];
-    return (
-      <tr key={k.id} className={k.status === 'revoked' ? 'dim' : ''}>
-        <td>
-          <div className="key-cell">
-            <span className="key-icon"><KeyRound size={15} /></span>
-            <div>
-              <div className="strong">{k.name}</div>
-              <div className="mono small muted">{maskKey(k)}</div>
-            </div>
-          </div>
-        </td>
-        {showProject && (
-          <td>
-            {p ? <Link to="/projects" className="link">{p.name}</Link> : <span className="faint">—</span>}
-            <div className="mono xsmall faint">{p?.ref}</div>
-          </td>
-        )}
-        <td><RestrictionChips r={k.restrictions} /></td>
-        <td>
-          <div>{fmtDate(k.createdAt)}</div>
-          <div className="xsmall faint">{k.expiresAt ? `Expires ${fmtDate(k.expiresAt)}` : 'No expiry'}</div>
-        </td>
-        <td className="nowrap">{fmtRelative(k.lastUsedAt)}</td>
-        <td>
-          {p && (p.billingEnabled
-            ? <Badge tone="info">{TIERS[p.tier]?.label}</Badge>
-            : <Link to="/billing" className="link small">Set up billing</Link>)}
-          {p && !p.billingEnabled && <div className="xsmall faint">Free tier</div>}
-        </td>
-        <td><Badge tone={st.tone} dot>{st.label}</Badge></td>
-        <td className="actions">
-          <div className="row gap-2 end">
-            <IconButton icon={BarChart3} label="Usage" onClick={() => navigate(`/usage?keyId=${k.id}`)} />
-            <IconButton icon={Wallet} label="Spend" onClick={() => navigate(`/spend?projectId=${k.projectId}`)} />
-            <Menu items={actions(k)} />
-          </div>
-        </td>
-      </tr>
-    );
-  };
-
-  const head = (showProject = true) => (
-    <thead>
-      <tr>
-        <th>Key</th>{showProject && <th>Project</th>}<th>Restrictions</th><th>Created</th><th>Last used</th><th>Billing</th><th>Status</th><th />
-      </tr>
-    </thead>
-  );
-
   return (
     <div className="page">
-      <PageHeader
-        eyebrow="Build"
-        title="API keys"
-        description="Create, scope, rotate and revoke the keys your apps use to call the API."
-        actions={<NewKeyButton onClick={() => { setEditing(null); setFormOpen(true); }} />}
-      />
+      <PageHeader eyebrow="Build" title="API keys"
+        description="Create a key for each site or app that shows the CAPTCHA. The site key goes in your HTML; the secret key stays on your server."
+        actions={canWrite && <NewKeyButton onClick={() => { setEditing(null); setFormOpen(true); }} />} />
 
       <div className="toolbar">
-        <Segmented value={group} onChange={setGroup} options={[
-          { value: 'key', label: 'All keys', icon: List },
-          { value: 'project', label: 'By project', icon: FolderKanban },
-        ]} />
         <div className="search-input">
           <Search size={15} />
-          <Input placeholder="Search name or last 4…" value={q} onChange={(e) => setQ(e.target.value)} />
+          <Input placeholder="Search name, site key or domain…" value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
-        <div className="row gap-8 ml-auto wrap">
-          <Select value={projectFilter} onChange={(e) => setProjectFilter(e.target.value)} aria-label="Filter by project">
-            <option value="">All projects</option>
-            {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </Select>
-          <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} aria-label="Filter by status">
+        <div className="ml-auto">
+          <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} aria-label="Status">
             <option value="active">Active</option>
             <option value="revoked">Revoked</option>
-            <option value="">All statuses</option>
+            <option value="">All keys</option>
           </Select>
         </div>
       </div>
@@ -193,63 +122,80 @@ export default function ApiKeys() {
         : error ? <Card><ErrorState error={error} onRetry={reload} /></Card>
         : keys.length === 0 ? (
           <Card>
-            <EmptyState icon={KeyRound} title={q || projectFilter ? 'No keys match these filters' : 'No API keys yet'}
-              action={!q && <NewKeyButton onClick={() => { setEditing(null); setFormOpen(true); }} />}>
-              {q || projectFilter ? 'Try clearing the search or picking another project.' : 'Create a key to start calling the API from your app.'}
+            <EmptyState icon={KeyRound} title={q ? 'No keys match' : statusFilter === 'revoked' ? 'No revoked keys' : 'No API keys yet'}
+              action={!q && canWrite && statusFilter !== 'revoked' && <NewKeyButton onClick={() => { setEditing(null); setFormOpen(true); }} />}>
+              {q ? 'Try a different search.' : 'Create a key, add the widget to your form, and verify answers from your server.'}
             </EmptyState>
           </Card>
-        ) : group === 'key' ? (
-          <Card className="table-card">
-            <div className="table-scroll"><table className="table">{head()}<tbody>{keys.map((k) => row(k))}</tbody></table></div>
-          </Card>
         ) : (
-          <div className="stack gap-16">
-            {grouped.map(([pid, list]) => {
-              const p = byId[pid];
-              return (
-                <Card key={pid} className="table-card">
-                  <div className="group-head">
-                    <div className="row gap-8">
-                      <FolderKanban size={16} />
-                      <strong>{p?.name || 'Unknown project'}</strong>
-                      <span className="mono xsmall faint">{p?.ref}</span>
-                    </div>
-                    <span className="muted small">{list.length} key{list.length > 1 ? 's' : ''}</span>
-                  </div>
-                  <div className="table-scroll"><table className="table">{head(false)}<tbody>{list.map((k) => row(k, false))}</tbody></table></div>
-                </Card>
-              );
-            })}
-          </div>
+          <Card className="table-card">
+            <div className="table-scroll">
+              <table className="table">
+                <thead>
+                  <tr><th>Key</th><th>Site key</th><th>Secret</th><th>Domains</th><th>Challenge</th><th>Last used</th><th>Status</th><th /></tr>
+                </thead>
+                <tbody>
+                  {keys.map((k) => {
+                    const mode = modeLabel(k.settings.dynamicThreshold);
+                    return (
+                      <tr key={k.id} className={k.status === 'revoked' ? 'dim' : ''}>
+                        <td>
+                          <div className="key-cell">
+                            <span className="key-icon"><KeyRound size={15} /></span>
+                            <div>
+                              <div className="strong">{k.name}</div>
+                              <div className="xsmall faint">Created {fmtDate(k.createdAt)}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td>
+                          <div className="row gap-2">
+                            <code className="mono small key-code" title={k.siteKey}>{k.siteKey}</code>
+                            <CopyButton value={k.siteKey} label="Copy site key" />
+                          </div>
+                        </td>
+                        <td className="mono small muted nowrap">{maskSecret(k)}</td>
+                        <td><Domains list={k.allowedDomains} /></td>
+                        <td>
+                          <span className="chip"><mode.icon size={11} />{mode.text}</span>
+                          <div className="xsmall faint" style={{ marginTop: 4 }}>
+                            {k.settings.length} chars · {k.settings.challengeTtl}s{k.settings.caseSensitive ? '' : ' · any case'}
+                          </div>
+                        </td>
+                        <td className="nowrap">{fmtRelative(k.lastUsedAt)}</td>
+                        <td>{k.status === 'active' ? <Badge tone="ok" dot>Active</Badge> : <Badge tone="neutral" dot>Revoked</Badge>}</td>
+                        <td className="actions">
+                          <div className="row gap-2 end">
+                            <IconButton icon={BarChart3} label="Analytics" onClick={() => navigate(`/analytics?keyId=${k.id}`)} />
+                            <Menu items={actions(k)} />
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </Card>
         )}
 
       <p className="footnote">
-        Full secrets are shown only once, when a key is created or regenerated. We store a one-way hash, so lost keys can’t be recovered — regenerate instead.
+        Secret keys are stored as one-way hashes, so a lost secret can’t be recovered — roll it to get a new one.
       </p>
 
       <KeyFormModal
         open={formOpen}
         onClose={() => setFormOpen(false)}
         keyToEdit={editing}
-        defaultProjectId={projectFilter}
         onCreated={(res) => {
-          if (!statusFilter || statusFilter === 'active') setData((l) => [res.key, ...(l || [])]);
-          setSecret({ value: res.secret, name: res.key.name });
-          reloadProjects();
+          if (statusFilter !== 'revoked') setData((l) => [res.key, ...(l || [])]);
+          setSecret(res);
         }}
         onSaved={replaceKey}
       />
-      <SecretModal secret={secret?.value} keyName={secret?.name} onClose={() => setSecret(null)} />
-      <ConfirmDialog
-        open={!!confirm}
-        onClose={() => setConfirm(null)}
-        onConfirm={() => confirm.run()}
-        title={confirm?.title}
-        body={confirm?.body}
-        confirmLabel={confirm?.confirmLabel}
-        tone={confirm?.tone}
-        requireText={confirm?.requireText}
-      />
+      <SecretModal data={secret} onClose={() => setSecret(null)} />
+      <ConfirmDialog open={!!confirm} onClose={() => setConfirm(null)} onConfirm={() => confirm.run()}
+        title={confirm?.title} body={confirm?.body} confirmLabel={confirm?.confirmLabel} tone={confirm?.tone} requireText={confirm?.requireText} />
     </div>
   );
 }

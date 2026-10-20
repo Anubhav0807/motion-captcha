@@ -1,60 +1,44 @@
-export const APP_NAME = import.meta.env.VITE_APP_NAME || 'Keystone';
-export const DOCS_URL = import.meta.env.VITE_DOCS_URL || '#';
-export const KEY_PREFIX = import.meta.env.VITE_KEY_PREFIX || 'ks_live_';
-export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\/$/, '');
-export const USE_MOCK = String(import.meta.env.VITE_USE_MOCK ?? 'true') === 'true';
+export const APP_NAME = 'motion-captcha';
 
-/**
- * Models your platform exposes. Prices are USD per 1M tokens.
- * The backend is the source of truth for billing; these are used for labels
- * and for the mock backend. Your API can override them via GET /models later.
- */
-export const MODELS = [
-  { id: 'nova-pro', label: 'Nova Pro', input: 1.25, output: 5.0, color: 'var(--c1)' },
-  { id: 'nova-flash', label: 'Nova Flash', input: 0.15, output: 0.6, color: 'var(--c2)' },
-  { id: 'nova-embed', label: 'Nova Embed', input: 0.02, output: 0, color: 'var(--c3)' },
-];
+export const DOCS_URL = import.meta.env.VITE_DOCS_URL || '/integration';
 
-export const modelLabel = (id) => MODELS.find((m) => m.id === id)?.label || id;
+/** Base URL customers' browsers use for /v1 (shown in snippets). */
+export const PUBLIC_API_URL = (import.meta.env.VITE_PUBLIC_API_URL || window.location.origin).replace(/\/$/, '');
 
-/** Usage tiers and their per-model limits (requests/min, tokens/min, requests/day). */
-export const TIERS = {
-  free: {
-    label: 'Free',
-    requirement: 'Default for new projects. No billing account.',
-    limits: {
-      'nova-pro': { rpm: 5, tpm: 250_000, rpd: 100 },
-      'nova-flash': { rpm: 15, tpm: 1_000_000, rpd: 1_500 },
-      'nova-embed': { rpm: 100, tpm: 1_000_000, rpd: 10_000 },
-    },
-  },
-  tier1: {
-    label: 'Tier 1',
-    requirement: 'Billing account linked to the project.',
-    limits: {
-      'nova-pro': { rpm: 150, tpm: 2_000_000, rpd: 10_000 },
-      'nova-flash': { rpm: 1_000, tpm: 4_000_000, rpd: 50_000 },
-      'nova-embed': { rpm: 3_000, tpm: 10_000_000, rpd: null },
-    },
-  },
-  tier2: {
-    label: 'Tier 2',
-    requirement: '$250 total spend and 30 days since first payment.',
-    limits: {
-      'nova-pro': { rpm: 1_000, tpm: 5_000_000, rpd: 50_000 },
-      'nova-flash': { rpm: 2_000, tpm: 10_000_000, rpd: 100_000 },
-      'nova-embed': { rpm: 5_000, tpm: 20_000_000, rpd: null },
-    },
-  },
-  tier3: {
-    label: 'Tier 3',
-    requirement: '$1,000 total spend and 30 days since first payment.',
-    limits: {
-      'nova-pro': { rpm: 2_000, tpm: 8_000_000, rpd: null },
-      'nova-flash': { rpm: 10_000, tpm: 30_000_000, rpd: null },
-      'nova-embed': { rpm: 10_000, tpm: 50_000_000, rpd: null },
-    },
-  },
+export const ROLE_LABELS = {
+  owner: 'Owner',
+  admin: 'Admin',
+  developer: 'Developer',
+  billing: 'Billing',
+  viewer: 'Viewer',
 };
 
-export const TIER_ORDER = ['free', 'tier1', 'tier2', 'tier3'];
+export const ROLE_DESCRIPTIONS = {
+  admin: 'Everything, including team and billing',
+  developer: 'Keys, analytics and logs',
+  billing: 'Plans, invoices and quota alerts',
+  viewer: 'Read-only',
+};
+
+export const ENDPOINT_LABELS = {
+  assess: 'Assess',
+  challenge: 'Challenge',
+  verify: 'Verify',
+};
+
+export const ERROR_CODE_HELP = {
+  'incorrect-answer': 'The user typed the wrong characters.',
+  'token-already-used': 'The token was already verified once. Tokens are single-use.',
+  'token-expired': 'The user answered after the challenge expired.',
+  'invalid-token': 'The token is unknown or belongs to a different key.',
+  'challenge-not-issued': 'The image was never loaded for this token.',
+  origin_not_allowed: 'The request came from a domain that is not on the key’s allowlist.',
+  rate_limited: 'The key exceeded its per-minute limit.',
+  quota_exceeded: 'The monthly verification quota was reached.',
+  key_revoked: 'The key has been revoked.',
+  too_many_refreshes: 'The user asked for a new image too many times.',
+  token_expired: 'The challenge image was requested after expiry.',
+  token_used: 'The image was requested after the token was verified.',
+  model_error: 'The risk model failed. Check the server logs.',
+  generation_failed: 'Rendering the image failed. Check the server logs.',
+};

@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
-  LayoutGrid, KeyRound, FolderKanban, BarChart3, Gauge, ScrollText, Wallet, CreditCard, Settings,
-  Bell, Search, Moon, Sun, LogOut, Menu as MenuIcon, X, BookOpen, ArrowUpRight, ChevronDown,
+  LayoutGrid, KeyRound, Code2, BarChart3, Gauge, ScrollText, PieChart, CreditCard, Settings,
+  Bell, Search, Moon, Sun, LogOut, Menu as MenuIcon, X, BookOpen, ArrowUpRight, ChevronDown, Waves,
 } from 'lucide-react';
-import { APP_NAME, DOCS_URL, USE_MOCK } from '../config';
+import { APP_NAME, DOCS_URL } from '../config';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../api';
 import { fmtRelative } from '../lib/format';
@@ -14,16 +14,16 @@ export const NAV = [
   { group: 'Build', items: [
     { to: '/', label: 'Overview', icon: LayoutGrid, end: true },
     { to: '/keys', label: 'API keys', icon: KeyRound },
-    { to: '/projects', label: 'Projects', icon: FolderKanban },
+    { to: '/integration', label: 'Integration', icon: Code2 },
   ] },
   { group: 'Monitor', items: [
-    { to: '/usage', label: 'Usage', icon: BarChart3 },
-    { to: '/rate-limits', label: 'Rate limits', icon: Gauge },
+    { to: '/analytics', label: 'Analytics', icon: BarChart3 },
     { to: '/logs', label: 'Request logs', icon: ScrollText },
+    { to: '/rate-limits', label: 'Rate limits', icon: Gauge },
   ] },
   { group: 'Billing', items: [
-    { to: '/spend', label: 'Spend & budgets', icon: Wallet },
-    { to: '/billing', label: 'Billing', icon: CreditCard },
+    { to: '/quota', label: 'Quota & alerts', icon: PieChart },
+    { to: '/billing', label: 'Plans & billing', icon: CreditCard },
   ] },
   { group: 'Account', items: [
     { to: '/settings', label: 'Settings', icon: Settings },
@@ -97,7 +97,7 @@ function CommandPalette({ open, onClose }) {
   }, [open]);
   const results = useMemo(() => {
     const pages = NAV.flatMap((g) => g.items).map((i) => ({ label: i.label, hint: 'Page', icon: i.icon, go: i.to }));
-    const keyItems = keys.map((k) => ({ label: k.name, hint: `Key ••••${k.last4}`, icon: KeyRound, go: `/usage?keyId=${k.id}` }));
+    const keyItems = keys.map((k) => ({ label: k.name, hint: 'API key', icon: KeyRound, go: `/analytics?keyId=${k.id}` }));
     const all = [...pages, ...keyItems];
     const s = q.trim().toLowerCase();
     return s ? all.filter((r) => r.label.toLowerCase().includes(s)) : pages;
@@ -156,10 +156,10 @@ export default function Layout() {
     <div className={`shell ${navOpen ? 'nav-open' : ''}`}>
       <aside className="sidebar">
         <div className="brand">
-          <div className="brand-mark"><KeyRound size={16} strokeWidth={2.5} /></div>
+          <div className="brand-mark"><Waves size={17} strokeWidth={2.5} /></div>
           <div>
             <div className="brand-name">{APP_NAME}</div>
-            <div className="brand-sub">Developer console</div>
+            <div className="brand-sub">{user?.organization?.name}</div>
           </div>
           <button className="icon-btn only-mobile on-dark" onClick={() => setNavOpen(false)} aria-label="Close menu"><X size={18} /></button>
         </div>
@@ -178,10 +178,13 @@ export default function Layout() {
         </nav>
 
         <div className="sidebar-foot">
-          <a className="nav-item" href={DOCS_URL} target="_blank" rel="noreferrer">
-            <BookOpen size={17} /><span>Documentation</span><ArrowUpRight size={14} className="ml-auto" />
+          <a className="nav-item" href={DOCS_URL} target={DOCS_URL.startsWith('http') ? '_blank' : undefined} rel="noreferrer">
+            <BookOpen size={17} /><span>Documentation</span>{DOCS_URL.startsWith('http') && <ArrowUpRight size={14} className="ml-auto" />}
           </a>
-          {USE_MOCK && <div className="mock-flag">Demo data · mock backend</div>}
+          <div className="plan-chip">
+            <span>{user?.organization?.planName} plan</span>
+            <NavLink to="/billing" className="link xsmall">Upgrade</NavLink>
+          </div>
         </div>
       </aside>
       <div className="scrim" onClick={() => setNavOpen(false)} />
@@ -211,7 +214,7 @@ export default function Layout() {
               )}
               items={[
                 { label: 'Settings', icon: Settings, onClick: () => navigate('/settings') },
-                { label: 'Billing', icon: CreditCard, onClick: () => navigate('/billing') },
+                { label: 'Plans & billing', icon: CreditCard, onClick: () => navigate('/billing') },
                 'divider',
                 { label: 'Sign out', icon: LogOut, danger: true, onClick: logout },
               ]}

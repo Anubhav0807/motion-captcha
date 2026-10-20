@@ -1,15 +1,20 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 
-// In development, requests to /api are proxied to your backend.
-// Set VITE_DEV_PROXY_TARGET in .env.local (e.g. http://localhost:8080).
+// In development the dashboard proxies /api and /v1 to the FastAPI backend, so the
+// session cookie stays same-origin. In production, serve dist/ from the backend
+// (DASHBOARD_DIST) or put both behind one reverse proxy.
 export default defineConfig(({ mode }) => {
-  const target = process.env.VITE_DEV_PROXY_TARGET || 'http://localhost:8080';
+  const env = loadEnv(mode, process.cwd(), '');
+  const target = env.VITE_DEV_PROXY_TARGET || 'http://localhost:8000';
   return {
     plugins: [react()],
     server: {
       port: 5173,
-      proxy: { '/api': { target, changeOrigin: true } },
+      proxy: {
+        '/api': { target, changeOrigin: false },
+        '/v1': { target, changeOrigin: false },
+      },
     },
   };
 });

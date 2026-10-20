@@ -145,7 +145,9 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
 }
 .nav-item.active svg { color: #2fbf93; }
 .sidebar-foot { border-top: 1px solid #22252b; padding-top: 12px; margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
-.mock-flag { font-size: 11px; color: #e2a03f; background: rgba(226,160,63,.1); border: 1px solid rgba(226,160,63,.25); border-radius: 8px; padding: 6px 10px; }
+.plan-chip { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #cfd3da; background: var(--sidebar-2); border: 1px solid #262a31; border-radius: 9px; padding: 8px 12px; }
+.plan-chip .link { color: #2fbf93; }
+.brand-sub { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .scrim { display: none; }
 
 .main { min-width: 0; display: flex; flex-direction: column; }
@@ -481,3 +483,66 @@ kbd { font-family: var(--mono); font-size: 10.5px; padding: 2px 6px; border-radi
   .table-scroll .table { min-width: 760px; }
   .table-scroll .table td { white-space: nowrap; }
 }
+
+/* ============================================================ motion-captcha additions */
+.narrow-form { max-width: 520px; }
+.clickable-row { cursor: pointer; }
+.key-code { max-width: 190px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; vertical-align: middle; }
+.secret-box.plain { border-style: solid; border-color: var(--line-2); }
+.code-wrap { position: relative; }
+.code-wrap .code-copy { position: absolute; top: 8px; right: 8px; }
+.code-wrap .code-copy .icon-btn { color: #9aa3ad; background: rgba(255,255,255,.06); }
+.code-wrap .code-copy .icon-btn:hover { color: #fff; background: rgba(255,255,255,.12); }
+
+.range { width: 100%; accent-color: var(--accent); }
+
+.checklist { display: flex; flex-direction: column; gap: 4px; padding-top: 8px; }
+.check-step { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; font-weight: 600; }
+.check-step:hover { background: var(--hover); }
+.check-step svg:first-child { color: var(--ink-3); }
+.check-step.done { color: var(--ink-3); text-decoration: line-through; }
+.check-step.done svg:first-child { color: var(--ok); }
+
+.flow-step { display: flex; gap: 12px; }
+.flow-step p { margin-top: 2px; }
+.flow-num { flex: none; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); font-weight: 800; font-size: 12px; }
+
+.timeline { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.timeline li { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 10px; }
+.timeline li.current { border-color: var(--accent); background: var(--accent-soft); }
+
+.plan-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.plan-card { padding: 20px; display: flex; flex-direction: column; }
+.plan-card.current { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.plan-card h3 { font-size: 17px; font-weight: 800; }
+.plan-price { font-size: 30px; font-weight: 800; letter-spacing: -.03em; margin: 10px 0 14px; }
+.plan-price span { font-size: 13px; font-weight: 600; color: var(--ink-3); margin-left: 4px; letter-spacing: 0; }
+.plan-features { list-style: none; padding: 0; margin: 0 0 18px; display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+.plan-features li { display: flex; gap: 8px; align-items: center; }
+.plan-features svg { color: var(--accent); flex: none; }
+.plan-cta { margin-top: auto; }
+
+/* Login-page demo of the motion effect: the text is a stationary noise
+   pattern; the background noise drifts, so the word appears only in motion. */
+.auth-demo {
+  width: 250px; height: 100px; border-radius: 12px; margin-top: 28px; overflow: hidden; position: relative;
+  background-image:
+    repeating-linear-gradient(90deg, #000 0 1px, #808080 1px 2px, #fff 2px 3px, #404040 3px 4px, #c0c0c0 4px 5px),
+    repeating-linear-gradient(0deg, rgba(0,0,0,.5) 0 1px, transparent 1px 3px);
+  background-size: 37px 100%, 100% 7px;
+  animation: drift 1.6s linear infinite;
+  box-shadow: 0 10px 40px rgba(0,0,0,.4);
+}
+.auth-demo span {
+  position: absolute; inset: 0; display: grid; place-items: center; font: 900 56px/1 Impact, 'Arial Black', sans-serif; letter-spacing: .02em;
+  color: transparent;
+  background-image:
+    repeating-linear-gradient(90deg, #fff 0 1px, #404040 1px 2px, #c0c0c0 2px 3px, #000 3px 4px, #808080 4px 5px),
+    repeating-linear-gradient(0deg, rgba(0,0,0,.5) 0 1px, transparent 1px 3px);
+  background-size: 29px 100%, 100% 5px;
+  -webkit-background-clip: text; background-clip: text;
+}
+@keyframes drift { to { background-position: 37px 0, 0 0; } }
+@media (prefers-reduced-motion: reduce) { .auth-demo { animation: none; } }
+
+@media (max-width: 1100px) { .plan-grid { grid-template-columns: 1fr; } }

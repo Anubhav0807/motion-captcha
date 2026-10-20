@@ -1,16 +1,14 @@
 import {
+  Cell,
   Area, AreaChart, Bar, BarChart, CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
-import { fmtCompact, tickLabel } from '../lib/format';
+import { fmtCompact, tickLabel, tooltipLabel } from '../lib/format';
 
 const axis = { stroke: 'var(--ink-3)', fontSize: 11, tickLine: false, axisLine: false };
 
 function ChartTip({ active, payload, label, granularity, format = fmtCompact }) {
   if (!active || !payload?.length) return null;
-  const d = new Date(label);
-  const title = granularity === 'hour'
-    ? d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric' })
-    : d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  const title = tooltipLabel(granularity)(label);
   return (
     <div className="chart-tip">
       <div className="chart-tip-title">{title}</div>
@@ -40,7 +38,7 @@ export function TimeArea({ data, series, granularity = 'day', height = 260, form
         </defs>
         <CartesianGrid vertical={false} stroke="var(--line)" />
         <XAxis dataKey="ts" tickFormatter={tickLabel(granularity)} {...axis} minTickGap={24} />
-        <YAxis tickFormatter={format} {...axis} width={52} />
+        <YAxis tickFormatter={format} {...axis} width={52} allowDecimals={false} />
         <Tooltip content={<ChartTip granularity={granularity} format={format} />} cursor={{ stroke: 'var(--ink-3)', strokeDasharray: 3 }} />
         {series.map((s) => (
           <Area key={s.key} type="monotone" dataKey={s.key} name={s.name} stroke={s.color} strokeWidth={2}
@@ -57,7 +55,7 @@ export function TimeBars({ data, series, granularity = 'day', height = 260, form
       <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
         <CartesianGrid vertical={false} stroke="var(--line)" />
         <XAxis dataKey="ts" tickFormatter={tickLabel(granularity)} {...axis} minTickGap={24} />
-        <YAxis tickFormatter={format} {...axis} width={52} />
+        <YAxis tickFormatter={format} {...axis} width={52} allowDecimals={false} />
         <Tooltip content={<ChartTip granularity={granularity} format={format} />} cursor={{ fill: 'var(--hover)' }} />
         {series.map((s, i) => (
           <Bar key={s.key} dataKey={s.key} name={s.name} stackId="a" fill={s.color}
@@ -110,5 +108,30 @@ export function Legend({ items }) {
     <div className="legend">
       {items.map((i) => <span key={i.name}><i style={{ background: i.color }} />{i.name}</span>)}
     </div>
+  );
+}
+
+/** Categorical bars, e.g. the risk-score histogram. data: [{ label, value, color }] */
+export function CategoryBars({ data, height = 220, format = fmtCompact }) {
+  return (
+    <ResponsiveContainer width="100%" height={height}>
+      <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+        <CartesianGrid vertical={false} stroke="var(--line)" />
+        <XAxis dataKey="label" {...axis} />
+        <YAxis tickFormatter={format} {...axis} width={44} allowDecimals={false} />
+        <Tooltip
+          cursor={{ fill: 'var(--hover)' }}
+          content={({ active, payload }) => active && payload?.length ? (
+            <div className="chart-tip">
+              <div className="chart-tip-title">Risk {payload[0].payload.label}</div>
+              <div className="chart-tip-row"><i style={{ background: payload[0].payload.color }} /><span>Assessments</span><strong>{format(payload[0].value)}</strong></div>
+            </div>
+          ) : null}
+        />
+        <Bar dataKey="value" radius={[5, 5, 0, 0]} maxBarSize={56}>
+          {data.map((d) => <Cell key={d.label} fill={d.color} />)}
+        </Bar>
+      </BarChart>
+    </ResponsiveContainer>
   );
 }

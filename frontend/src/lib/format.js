@@ -36,7 +36,8 @@ export function fmtRelative(s) {
   return fut ? 'in a moment' : 'just now';
 }
 
-export const maskKey = (k) => `${k.prefix || ''}••••${k.last4 || ''}`;
+export const maskSecret = (k) => `mc_sk_••••••••${k.secretLast4 || ''}`;
+export const shortSiteKey = (k) => `${k.siteKey.slice(0, 12)}…${k.siteKey.slice(-4)}`;
 
 export const RANGE_PRESETS = [
   { id: '24h', label: 'Last 24 hours' },
@@ -56,10 +57,16 @@ export function rangeParams(id) {
   };
 }
 
+// Daily buckets are UTC days, so they're labelled in UTC; hourly ones in local time.
 export const tickLabel = (granularity) => (ts) =>
   granularity === 'hour'
     ? new Date(ts).toLocaleTimeString('en-US', { hour: 'numeric' })
-    : new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    : new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+
+export const tooltipLabel = (granularity) => (ts) =>
+  granularity === 'hour'
+    ? new Date(ts).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric' })
+    : new Date(ts).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
 
 export function downloadCSV(filename, rows) {
   if (!rows.length) return;
@@ -91,3 +98,6 @@ export async function copyText(text) {
     return ok;
   }
 }
+
+/** "1 challenge", "3 challenges" (formatted with thousands separators). */
+export const plural = (n, word, many = `${word}s`) => `${fmtInt(n)} ${Math.round(n || 0) === 1 ? word : many}`;

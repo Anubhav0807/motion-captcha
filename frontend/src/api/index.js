@@ -1,71 +1,55 @@
 import { http } from './client';
 
-/**
- * Every backend endpoint the console uses. The README documents the
- * request/response shapes so your backend can implement the same contract.
- */
+/** Every backend endpoint the dashboard uses (FastAPI, /api prefix). */
 export const api = {
   auth: {
-    login: (email, password) => http.post('/auth/login', { email, password }),
-    signup: (name, email, password) => http.post('/auth/signup', { name, email, password }),
     me: () => http.get('/auth/me'),
+    login: (email, password) => http.post('/auth/login', { email, password }),
+    signup: (data) => http.post('/auth/signup', data),
     logout: () => http.post('/auth/logout'),
     logoutAll: () => http.post('/auth/logout-all'),
-  },
-
-  projects: {
-    list: () => http.get('/projects'),
-    create: (data) => http.post('/projects', data),
-    update: (id, data) => http.patch(`/projects/${id}`, data),
-    remove: (id) => http.del(`/projects/${id}`),
+    changePassword: (current_password, new_password) => http.post('/auth/change-password', { current_password, new_password }),
+    forgotPassword: (email) => http.post('/auth/forgot-password', { email }),
+    resetPassword: (token, password) => http.post('/auth/reset-password', { token, password }),
+    inviteInfo: (token) => http.get(`/auth/invites/${encodeURIComponent(token)}`),
+    acceptInvite: (data) => http.post('/auth/accept-invite', data),
   },
 
   keys: {
     list: (q) => http.get('/keys', q),
-    create: (data) => http.post('/keys', data), // -> { key, secret }  (secret shown once)
+    create: (data) => http.post('/keys', data), // -> { key, secret }
     update: (id, data) => http.patch(`/keys/${id}`, data),
-    regenerate: (id) => http.post(`/keys/${id}/regenerate`), // -> { key, secret }
+    rollSecret: (id) => http.post(`/keys/${id}/roll-secret`), // -> { key, secret }
     revoke: (id) => http.post(`/keys/${id}/revoke`),
     remove: (id) => http.del(`/keys/${id}`),
   },
 
   usage: {
-    timeseries: (q) => http.get('/usage/timeseries', q), // q: from,to,granularity,projectId,keyId
-    breakdown: (q) => http.get('/usage/breakdown', q), // q: by=model|key + filters
+    timeseries: (q) => http.get('/usage/timeseries', q),
+    byKey: (q) => http.get('/usage/by-key', q),
+  },
+
+  quota: {
+    get: () => http.get('/quota'),
+    setAlerts: (data) => http.put('/quota/alerts', data),
   },
 
   rateLimits: {
-    get: (projectId) => http.get('/rate-limits', { projectId }),
+    get: () => http.get('/rate-limits'),
     requestIncrease: (data) => http.post('/rate-limits/increase-requests', data),
   },
 
-  spend: {
-    summary: (projectId) => http.get('/spend/summary', { projectId }),
-    setCap: (projectId, amount) => http.put(`/projects/${projectId}/spend-cap`, { amount }),
-  },
-
-  budgets: {
-    list: () => http.get('/budgets'),
-    create: (data) => http.post('/budgets', data),
-    update: (id, data) => http.patch(`/budgets/${id}`, data),
-    remove: (id) => http.del(`/budgets/${id}`),
+  logs: {
+    list: (q) => http.get('/logs', q),
+    get: (id) => http.get(`/logs/${id}`),
   },
 
   billing: {
+    plans: () => http.get('/billing/plans'),
     account: () => http.get('/billing/account'),
-    // Backend creates a hosted checkout (e.g. Stripe Checkout) and returns { url }.
-    checkout: (data) => http.post('/billing/checkout-session', data),
-    // Backend creates a hosted billing portal session and returns { url }.
-    portal: (data) => http.post('/billing/portal-session', data),
+    checkout: (plan) => http.post('/billing/checkout', { plan }), // -> { url }
+    portal: () => http.post('/billing/portal'), // -> { url }
     invoices: () => http.get('/billing/invoices'),
-    invoicePdf: (id) => http.get(`/billing/invoices/${id}/pdf`), // -> { url }
-  },
-
-  logs: {
-    list: (q) => http.get('/logs', q), // cursor pagination -> { items, nextCursor }
-    get: (id) => http.get(`/logs/${id}`),
-    settings: (projectId) => http.get(`/projects/${projectId}/logging`),
-    updateSettings: (projectId, data) => http.patch(`/projects/${projectId}/logging`, data),
   },
 
   notifications: {
@@ -76,6 +60,7 @@ export const api = {
   team: {
     list: () => http.get('/team'),
     invite: (email, role) => http.post('/team/invites', { email, role }),
+    revokeInvite: (id) => http.del(`/team/invites/${id}`),
     updateRole: (id, role) => http.patch(`/team/${id}`, { role }),
     remove: (id) => http.del(`/team/${id}`),
   },
